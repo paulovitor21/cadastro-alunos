@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="jquery.js"></script>
+    <title>Listagem de Alunos</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Instituto de Ciências Exatas e Tecnologia</h1>
+        </header>
+    
+        <main>
+            <h2>Lista de Alunos</h2>
+
+            <div>
+                <img id="icone_cadastro" class="icone_cadastro" src="assets/plus_icon.png" alt="">
+                <p>Cadastrar novo aluno</p>
+                
+                <form>
+                    <p><input type="text" id="matricula" name="matricula" class="matricula" placeholder="Número de matrícula" maxlength="8" max="8"></p>
+                    <p><input type="text" id="nome" name="nome" class="name" placeholder="Seu nome"></p>
+                    <p><input type="text" id="anoingresso" name="anoingresso" class="anoingresso" placeholder="Ano de ingresso"></p>
+                    <p><input type="submit" value="Cadastrar aluno"></p>
+                </form>
+
+                <p>Pesquisar aluno por nome</p>
+                <p><input id="onde" name="onde" placeholder="Digite o nome para pesquisar"></p>
+                <p><input type="button" id="mostre-me" value="Exibir alunos"></p>
+
+                <h2>Lista de Alunos</h2>
+                <ul id="nome-lista"></ul>
+
+                <p>Recuperar Banco de Dados SQL</p>
+                <button onclick="recuperar()">Visualizar todos</button>
+            </div>
+        </main>
+    </div>
+    <!--Area do Banco de Dados-->
+    <script>
+        // Erro genérico de callback para transações de banco de dados
+        var errCallback = function() {
+            alert("Há um erro de banco de dados!");
+        }
+
+        // Inicializar banco de dados - não compativel com navegadores firefox e internet explorer
+        var db_alunos = openDatabase("cadastro", "1.0", "Cadastro online de alunos", 32678);
+
+        // Criar a tabela alunos
+        db_alunos.transaction(function(transaction){
+			transaction.executeSql("CREATE TABLE IF NOT EXISTS alunos (" +
+				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT," +
+				"matricula TEXT NOT NULL, nome TEXT NOT NULL, anoingresso TEXT NOT NULL);");
+		});
+
+        // Salvar dados no banco
+        var salvarcadastro = function(matricula, nome, anoingresso, successCallback){
+			db_alunos.transaction(function(transaction){
+				transaction.executeSql(("INSERT INTO alunos (matricula, nome, anoingresso) VALUES (?, ?, ?);"), 
+				[matricula, nome, anoingresso], function(transaction, results){successCallback(results);}, errCallback);
+			});
+		};
+
+        // Esta é uma função de carga, que carrega todos os cadastro para um determinado local
+		var carregacadastro = function(nome, successCallback){
+			db_alunos.transaction(function(transaction){
+				transaction.executeSql(("SELECT * FROM alunos WHERE nome=?"), [nome],
+					function(transaction, results){successCallback(results);}, errCallback);
+				});
+		};
+
+        // evento documento okay
+        $(function() {
+            var form = $("form");
+
+            // Callback ao carregar dados
+            var atualizapagina = function(results) {
+                var list = $("#nome-lista");
+                list.empty();
+                console.dir(results);
+                if (results.rows.length == 0) {
+                    alert("Não há nomes aqui!");
+                }
+                else {
+                    $.each(results.rows, function(rowIndex) {
+                        var linha = results.rows.item(rowIndex);
+                        list.append("<li>" + linha.matricula + ", " + linha.nome + ", " + linha.anoingresso + "</li>");
+                    });
+                }
+            };
+
+            // Substituir o formulário padrão apresentar em favor do nosso código
+			form.submit(function(event){
+				event.preventDefault();
+				salvarcadastro($('#matricula').val(), $('#nome').val(), $('#anoingresso').val(), function(){
+					alert("dados do aluno " + $('#nome').val() + " salvos!");
+				})
+			});
+
+            // Lista de cadastro vinculados a um botão na página
+			$('#mostre-me').click(function(){carregacadastro($('#onde').val(), atualizapagina);});
+        });
+
+        function recuperar() {
+            db_alunos.transaction(function (tx) {
+                tx.executeSql(
+                    'SELECT * FROM alunos',
+                    [],
+                    function (tx, results) {
+                        var len = results.rows.length;
+                        alert('Existem ' + len + ' registros!');
+                        for (var i = 0; i < len; i++) {
+                            var row = results.rows.item(i);
+                            alert(row.id + ': ' + row.nome);
+                        }
+                    },
+                    function (tx, error) {
+                        alert('😠' + error.message);
+                    }
+                );
+            });
+        }
+
+    </script>
+</body>
+</html>
